@@ -155,7 +155,6 @@ export default function TaskItem({ task, onToggle, onDelete, isNew = false }: Ta
         <p
           className={`
             text-sm font-medium leading-snug break-words
-            transition-all duration-300
             ${
               task.completed
                 ? 'line-through text-gray-400 dark:text-gray-500'
