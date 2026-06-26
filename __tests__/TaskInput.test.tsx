@@ -11,8 +11,22 @@ jest.mock('framer-motion', () => {
     useReducedMotion: () => true,
     motion: {
       ...actual.motion,
-      button: ({ children, ...props }: React.ComponentProps<'button'>) => (
-        <button {...props}>{children}</button>
+      button: ({
+        children,
+        // Strip framer-motion specific props that are invalid on plain DOM elements
+        initial: _initial,
+        animate: _animate,
+        exit: _exit,
+        variants: _variants,
+        transition: _transition,
+        whileHover: _whileHover,
+        whileTap: _whileTap,
+        whileFocus: _whileFocus,
+        layout: _layout,
+        layoutId: _layoutId,
+        ...props
+      }: React.ComponentProps<'button'> & Record<string, unknown>) => (
+        <button {...(props as React.ComponentProps<'button'>)}>{children}</button>
       ),
     },
   }
