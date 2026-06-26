@@ -66,25 +66,32 @@ Work through the review checklist above. Note findings as:
 - **Important**: Code quality issue that should be fixed
 - **Minor**: Style suggestion, can be addressed later
 
-### Step 4 — If Critical/Important issues found
-Add a Linear comment with the findings using `save_comment`. Do NOT create the PR. Return:
-```
-STATUS: NEEDS_FIXES
-TICKET: <ticket-id>
-FINDINGS:
-- [Critical] <description of issue>
-- [Important] <description of issue>
-```
+### Step 4 — Push the branch and create the GitHub PR
 
-The dev-agent will fix these and you will be called again.
+Always push and create the PR regardless of findings. If there are Critical or Important issues, create it as a **draft** so it is visible but not mergeable. If the review is clean, create it as a regular PR.
 
-### Step 5 — Create the GitHub PR
-If no Critical or Important issues:
-
+First, push the branch:
 ```bash
+git push -u origin HEAD
+```
+
+Then create the PR:
+```bash
+# With Critical/Important findings — draft PR:
+gh pr create --draft \
+  --title "<ticket-identifier>: <feature-title>" \
+  --body "..." \
+  --base main
+
+# Clean review — regular PR:
 gh pr create \
   --title "<ticket-identifier>: <feature-title>" \
-  --body "$(cat <<'PREOF'
+  --body "..." \
+  --base main
+```
+
+PR body template (always include all sections; leave "Review Findings" empty if none):
+```
 ## Summary
 Implements <ticket-identifier>: <feature-title>
 
@@ -109,42 +116,41 @@ Implements <ticket-identifier>: <feature-title>
 ## Linear Ticket
 <full URL of the Linear ticket>
 
-## Review Notes
-<any Minor findings or observations for the reviewer>
-PREOF
-)" \
-  --base main
+## Review Findings
+<list Critical/Important/Minor findings here, or "No issues found." if clean>
 ```
 
-Extract the PR URL from the output.
+Extract the PR URL from the `gh pr create` output.
 
-### Step 6 — Update Linear ticket
-Call `save_issue` to move ticket to "In Review (PR Open)" status (find the correct status ID first with `list_issue_statuses`). Add a comment with the PR URL.
+### Step 5 — Update Linear ticket
+Call `save_issue` to move ticket to "In Review (PR Open)" status (find the correct status ID first with `list_issue_statuses`). Add a comment with the PR URL and any findings.
 
 ## Output
 
-On success:
+On clean review:
 ```
 STATUS: DONE
 TICKET: <ticket-id>
 PR_URL: <github pr url>
 BRANCH: <branch-name>
-FINDINGS: <N critical, N important, N minor>
-MINOR_NOTES: <list any minor findings for the final reviewer>
+FINDINGS: 0 critical, 0 important, <N> minor
 ```
 
-On issues found:
+On issues found (PR still created as draft):
 ```
 STATUS: NEEDS_FIXES
 TICKET: <ticket-id>
+PR_URL: <github pr url>
+BRANCH: <branch-name>
 FINDINGS:
-- [Critical] <description>
-- [Important] <description>
+- [Critical] <file>:<line> — <description>
+- [Important] <file>:<line> — <description>
 ```
 
 ## Important Rules
-- Never approve a PR with Critical spec violations (missing reduced motion, wrong CSS properties, localStorage usage)
+- **Always push the branch and create the PR** — never leave the branch local-only
+- Create a **draft PR** when there are Critical or Important findings; regular PR when clean
 - Never create a PR if `gh` is not authenticated — check with `gh auth status` first
 - Be precise about findings: state exactly which file and line has the issue
-- Minor findings go in PR notes, not as blockers
+- Minor findings go in the PR body only, not as blockers
 - The PR base branch is always `main`
