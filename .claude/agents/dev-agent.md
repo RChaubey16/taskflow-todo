@@ -6,6 +6,10 @@ tools:
   - Read
   - Write
   - Edit
+  - mcp__playwright__browser_navigate
+  - mcp__playwright__browser_take_screenshot
+  - mcp__playwright__browser_console_messages
+  - mcp__playwright__browser_close
   - mcp__linear-server__get_issue
   - mcp__linear-server__save_issue
   - mcp__linear-server__list_issue_statuses
@@ -123,6 +127,27 @@ npm test -- --watchAll=false
 
 All tests must pass before proceeding.
 
+### Step 6.5 — Smoke test with Playwright
+
+Start the dev server, open the app in a real browser, and verify no obvious failures before committing.
+
+```bash
+npm run dev &
+sleep 5
+```
+
+Then:
+1. `browser_navigate → http://localhost:3000`
+2. `browser_take_screenshot` — attach the screenshot path to the Linear comment in Step 8
+3. `browser_console_messages` — **if any error-level messages appear, fix them before committing**
+4. `browser_close`
+
+```bash
+kill $(lsof -ti:3000) 2>/dev/null || true
+```
+
+This is a quick sanity check only — full UI and animation verification is the QA agent's responsibility.
+
 ### Step 7 — Commit
 ```bash
 git add -A
@@ -135,7 +160,7 @@ Implements <ticket-identifier>: <ticket-title>
 ```
 
 ### Step 8 — Update ticket status
-Call `save_issue` to move the ticket to "In Review" status. Add a comment with a brief implementation summary.
+Call `save_issue` to move the ticket to "In Review" status. Add a comment with a brief implementation summary including the screenshot path captured in Step 6.5.
 
 ## Output
 
