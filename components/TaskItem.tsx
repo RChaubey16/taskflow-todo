@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useReducedMotion, type Transition } from 'framer-motion'
+import { motion, useReducedMotion, AnimatePresence, type Transition } from 'framer-motion'
 import type { Task } from '@/lib/types'
 
 interface TaskItemProps {
@@ -17,6 +17,12 @@ const priorityConfig = {
   urgent: { label: 'Urgent', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
 }
 
+// Approximate path length for polyline "2,6 5,9 10,3" in a 12x12 viewBox:
+// segment 1: (2,6) -> (5,9) = sqrt(9+9) ≈ 4.24
+// segment 2: (5,9) -> (10,3) = sqrt(25+36) ≈ 7.81
+// total ≈ 12.05 — round up to 13 for reliable coverage
+const CHECKMARK_PATH_LENGTH = 13
+
 function formatDueDate(dueDate: string): { text: string; isOverdue: boolean } {
   const due = new Date(dueDate)
   const now = new Date()
@@ -29,8 +35,61 @@ function formatDueDate(dueDate: string): { text: string; isOverdue: boolean } {
   }
 }
 
+interface AnimatedCheckmarkProps {
+  completed: boolean
+  reduceMotion: boolean
+}
+
+function AnimatedCheckmark({ completed, reduceMotion }: AnimatedCheckmarkProps) {
+  // Draw-on animation: start fully hidden (dashoffset = pathLength), animate to 0
+  const checkmarkVariants = {
+    hidden: {
+      strokeDashoffset: CHECKMARK_PATH_LENGTH,
+      opacity: reduceMotion ? 1 : 0,
+    },
+    visible: {
+      strokeDashoffset: 0,
+      opacity: 1,
+    },
+  }
+
+  const checkmarkTransition: Transition = reduceMotion
+    ? { duration: 0 }
+    : { duration: 0.3, ease: 'easeOut' }
+
+  return (
+    <AnimatePresence>
+      {completed && (
+        <motion.svg
+          key="checkmark"
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="white"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+          transition={checkmarkTransition}
+        >
+          <motion.polyline
+            points="2,6 5,9 10,3"
+            strokeDasharray={CHECKMARK_PATH_LENGTH}
+            variants={checkmarkVariants}
+            transition={checkmarkTransition}
+          />
+        </motion.svg>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export default function TaskItem({ task, onToggle, onDelete, isNew = false }: TaskItemProps) {
-  const shouldReduceMotion = useReducedMotion()
+  const shouldReduceMotion = useReducedMotion() ?? false
 
   const itemVariants = {
     initial: shouldReduceMotion
@@ -88,21 +147,7 @@ export default function TaskItem({ task, onToggle, onDelete, isNew = false }: Ta
           }
         `}
       >
-        {task.completed && (
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="white"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="2,6 5,9 10,3" />
-          </svg>
-        )}
+        <AnimatedCheckmark completed={task.completed} reduceMotion={shouldReduceMotion} />
       </button>
 
       {/* Content */}
@@ -110,6 +155,7 @@ export default function TaskItem({ task, onToggle, onDelete, isNew = false }: Ta
         <p
           className={`
             text-sm font-medium leading-snug break-words
+            transition-all duration-300
             ${
               task.completed
                 ? 'line-through text-gray-400 dark:text-gray-500'
