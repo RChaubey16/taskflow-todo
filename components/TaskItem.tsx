@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion, type Transition } from 'framer-motion'
 import type { Task } from '@/lib/types'
 
 interface TaskItemProps {
@@ -42,11 +42,11 @@ export default function TaskItem({ task, onToggle, onDelete, isNew = false }: Ta
       : { opacity: 0, x: -20 },
   }
 
-  const transition = shouldReduceMotion
+  const transition: Transition = shouldReduceMotion
     ? { duration: 0 }
     : isNew
-    ? { duration: 0.2, ease: 'easeOut' }
-    : { duration: 0.3, ease: 'easeIn' }
+    ? { duration: 0.2, ease: 'easeOut' as const }
+    : { duration: 0.3, ease: 'easeIn' as const }
 
   const dueDateInfo = task.dueDate ? formatDueDate(task.dueDate) : null
 
