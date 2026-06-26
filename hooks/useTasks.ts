@@ -46,11 +46,24 @@ export function useTasks() {
     setTasks((prev) => prev.filter((task) => task.id !== id))
   }, [])
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === 'active') return !task.completed
-    if (filter === 'completed') return task.completed
-    return true
-  })
+  const filteredTasks = (() => {
+    const filtered = tasks.filter((task) => {
+      if (filter === 'active') return !task.completed
+      if (filter === 'completed') return task.completed
+      return true
+    })
+
+    // In "all" view, push completed tasks to the bottom so active tasks remain prominent.
+    // "active" and "completed" filter views keep their original insertion order.
+    if (filter === 'all') {
+      return [
+        ...filtered.filter((t) => !t.completed),
+        ...filtered.filter((t) => t.completed),
+      ]
+    }
+
+    return filtered
+  })()
 
   const completedCount = tasks.filter((t) => t.completed).length
   const totalCount = tasks.length
