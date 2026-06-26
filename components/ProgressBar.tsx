@@ -30,9 +30,9 @@ export default function ProgressBar({ completed, total, progress }: ProgressBarP
         className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"
       >
         <motion.div
-          className="h-full bg-gradient-to-r from-violet-500 to-violet-400 rounded-full"
-          initial={shouldReduceMotion ? undefined : { width: 0 }}
-          animate={{ width: `${progress}%` }}
+          className="h-full w-full bg-gradient-to-r from-violet-500 to-violet-400 rounded-full origin-left"
+          initial={shouldReduceMotion ? undefined : { scaleX: 0 }}
+          animate={{ scaleX: progress / 100 }}
           transition={
             shouldReduceMotion
               ? { duration: 0 }
