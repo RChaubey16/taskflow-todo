@@ -160,7 +160,7 @@ Implements <ticket-identifier>: <ticket-title>
 ```
 
 ### Step 8 — Update ticket status
-Call `save_issue` to move the ticket to "In Review" status. Add a comment with a brief implementation summary including the screenshot path captured in Step 6.5.
+Leave the ticket status as "In Progress" — the pipeline uses GitHub PR state to track the review cycle, so no status change is needed here. Add a comment with a brief implementation summary including the screenshot path captured in Step 6.5.
 
 ## Output
 
@@ -184,7 +184,7 @@ ATTEMPTED: <what you tried>
 ## Important Rules
 - Never commit directly to `main`
 - Never use `localStorage`, `fetch`, or external APIs
-- Never hardcode status IDs — always look them up with `list_issue_statuses`
+- Never move a ticket to "In Review" or "PR Open" — those statuses don't exist; leave it "In Progress"
 - Never skip the reduced motion check
 - Always run tests before committing; do not commit with failing tests
 - Keep components focused — one responsibility per file

@@ -123,7 +123,7 @@ Implements <ticket-identifier>: <feature-title>
 Extract the PR URL from the `gh pr create` output.
 
 ### Step 5 — Update Linear ticket
-Call `save_issue` to move ticket to "In Review (PR Open)" status (find the correct status ID first with `list_issue_statuses`). Add a comment with the PR URL and any findings.
+Add a comment to the ticket with the PR URL and any findings using `save_comment`. Do NOT change the ticket status — the pipeline uses GitHub PR state (not Linear status) to track the review cycle.
 
 ## Output
 

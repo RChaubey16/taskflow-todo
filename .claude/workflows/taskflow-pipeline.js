@@ -41,13 +41,16 @@ const TICKETS_SCHEMA = {
   required: ['tickets'],
 }
 
-const PR_MERGED_SCHEMA = {
+// PR state is read from GitHub, not Linear — Linear has no "PR Open" status
+const PR_STATE_SCHEMA = {
   type: 'object',
   properties: {
-    merged: { type: 'boolean' },
+    hasPR: { type: 'boolean' },
+    prMerged: { type: 'boolean' },
+    prOpen: { type: 'boolean' },
     prUrl: { type: 'string' },
   },
-  required: ['merged'],
+  required: ['hasPR', 'prMerged', 'prOpen'],
 }
 
 // ── Phase 1: Bootstrap ─────────────────────────────────────────────────────
@@ -95,77 +98,56 @@ for (const ticket of tickets) {
     continue
   }
 
-  // ── Backlog / Todo / In Progress → run dev-agent ─────────────────────────
-  if (s === 'backlog' || s === 'todo' || s === 'in progress' || s === 'started') {
+  // ── Backlog / Todo → run dev-agent first, then fall through to PR check ──
+  if (s === 'backlog' || s === 'todo') {
     phase('Develop')
     log(`Implementing ${ticket.linearId}: ${ticket.title}`)
     await agent(
       `Implement Linear ticket ${ticket.linearId}: "${ticket.title}". Follow the PRD specs exactly.`,
       { agentType: 'dev-agent', phase: 'Develop' }
     )
-    log(`${ticket.linearId} implementation complete — proceeding to code review.`)
-
-    // Fall through into Review phase immediately (status updated by dev-agent)
-    phase('Review')
-    log(`Reviewing ${ticket.linearId}: ${ticket.title}`)
-    await agent(
-      `Review the code and create a GitHub PR for Linear ticket ${ticket.linearId}: "${ticket.title}".`,
-      { agentType: 'code-review-agent', phase: 'Review' }
-    )
-    log(`PR created for ${ticket.linearId}. ⏸  Merge it on GitHub, then re-run this workflow to continue.`)
-    break // Pause for human PR merge
+    log(`${ticket.linearId} implementation complete — checking PR state.`)
+    // Fall through to PR state check below
   }
 
-  // ── In Review (no PR yet) → run code-review-agent ────────────────────────
-  if (s === 'in review' || (s.includes('review') && !s.includes('pr'))) {
-    phase('Review')
-    log(`${ticket.linearId} is In Review — creating PR.`)
-    await agent(
-      `Review the code and create a GitHub PR for Linear ticket ${ticket.linearId}: "${ticket.title}".`,
-      { agentType: 'code-review-agent', phase: 'Review' }
-    )
-    log(`PR created for ${ticket.linearId}. ⏸  Merge it on GitHub, then re-run this workflow to continue.`)
-    break // Pause for human PR merge
-  }
+  // ── In Progress (or just-developed) → check GitHub for PR state ──────────
+  // Linear has no "In Review" / "PR Open" statuses, so GitHub is the source
+  // of truth for where this ticket is in the review cycle.
+  phase('Review')
+  const prCheck = await agent(
+    `Check the GitHub PR state for Linear ticket ${ticket.linearId}. ` +
+    `Run: gh pr list --search "${ticket.linearId}" --state all --json number,state,mergedAt,headRefName,url 2>/dev/null ` +
+    `A PR is "open" if state=="OPEN", "merged" if mergedAt is not null. ` +
+    `Return { hasPR: true/false, prMerged: true/false, prOpen: true/false, prUrl: "<url or empty string>" }`,
+    { agentType: 'qa-agent', schema: PR_STATE_SCHEMA, phase: 'Review' }
+  )
 
-  // ── PR open — check if merged ─────────────────────────────────────────────
-  if (s.includes('pr open') || s.includes('pr open')) {
+  if (prCheck.prMerged) {
+    // PR already merged — run QA
     phase('QA')
-    const prCheck = await agent(
-      `Check if the GitHub PR for ticket ${ticket.linearId} has been merged to main. ` +
-      `Run: gh pr list --search "${ticket.linearId}" --state merged --json number,state,mergedAt 2>/dev/null. ` +
-      `Also try: gh pr list --state merged --json number,headRefName,state | grep -i "${ticket.linearId.toLowerCase()}". ` +
-      `Return { merged: true/false, prUrl: "<url or empty string>" }`,
-      { agentType: 'qa-agent', schema: PR_MERGED_SCHEMA, phase: 'QA' }
-    )
-
-    if (!prCheck.merged) {
-      log(`⏸  PR for ${ticket.linearId} is not yet merged. Merge it on GitHub, then re-run this workflow.`)
-      break
-    }
-
-    log(`PR merged! Running QA for ${ticket.linearId}: ${ticket.title}`)
+    log(`PR merged for ${ticket.linearId} — running QA.`)
     await agent(
       `QA test Linear ticket ${ticket.linearId}: "${ticket.title}" on the main branch after the PR was merged.`,
       { agentType: 'qa-agent', phase: 'QA' }
     )
     log(`QA complete for ${ticket.linearId}.`)
-    // Continue to next ticket
     continue
   }
 
-  // ── In QA (qa-agent running or re-running) ────────────────────────────────
-  if (s === 'in qa') {
-    phase('QA')
-    log(`Re-running QA for ${ticket.linearId}: ${ticket.title}`)
-    await agent(
-      `QA test Linear ticket ${ticket.linearId}: "${ticket.title}" on the main branch.`,
-      { agentType: 'qa-agent', phase: 'QA' }
-    )
-    continue
+  if (prCheck.prOpen) {
+    // PR exists but not yet merged — pause and wait
+    log(`⏸  PR for ${ticket.linearId} is open at ${prCheck.prUrl || 'GitHub'}. Merge it, then re-run this workflow.`)
+    break
   }
 
-  log(`Unknown status "${ticket.status}" for ${ticket.linearId} — skipping. Check Linear manually.`)
+  // No PR yet — run code-review-agent to create one
+  log(`No PR found for ${ticket.linearId} — running code review.`)
+  await agent(
+    `Review the code and create a GitHub PR for Linear ticket ${ticket.linearId}: "${ticket.title}".`,
+    { agentType: 'code-review-agent', phase: 'Review' }
+  )
+  log(`PR created for ${ticket.linearId}. ⏸  Merge it on GitHub, then re-run this workflow to continue.`)
+  break
 }
 
 // ── Completion check ───────────────────────────────────────────────────────
